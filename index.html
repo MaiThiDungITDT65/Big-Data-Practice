@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#ffffff">
-  <meta name="description" content="Ôn thi 80 câu Big Data với 4 lựa chọn và chế độ ôn câu sai.">
+  <meta name="description" content="Ôn thi 80 câu Big Data theo nhóm không lặp, dịch từ vựng và ôn lại cả nhóm.">
   <title>Big Data 80 — Luyện trắc nghiệm</title>
   <link rel="icon" type="image/svg+xml" href="favicon.svg">
   <link rel="manifest" href="manifest.webmanifest">
@@ -16,24 +16,27 @@
 <body>
 <div class="app">
   <header class="header">
-    <a href="#" class="brand" id="homeLink">Big Data<span>80</span></a>
+    <a href="#" class="brand" id="homeLink">Big Data<span>Practice</span></a>
     <button class="small-btn" id="resetBtn" title="Xóa lịch sử học">Đặt lại</button>
   </header>
   <main id="home" class="home">
     <section class="welcome">
       <h1>Luyện tập <span class="highlight">Big Data</span><br>80 câu trắc nghiệm.</h1>
-      <p>Đủ 4 đáp án như lúc thi. Làm sai câu nào, ôn lại câu đó.</p>
+      <p>Học từng nhóm không lặp. Chạm từ tiếng Anh để xem nghĩa, ôn lại nhóm đến khi thuộc.</p>
     </section>
     <section class="home-actions" aria-label="Chế độ ôn tập">
       <button id="quizMode" class="mode-card primary-card">
         <strong>Làm trắc nghiệm <span aria-hidden="true">→</span></strong>
-        <small>Luyện 10, 20, 40 hoặc 80 câu</small>
+        <small>10, 20, 40 hoặc 80 câu chưa làm</small>
       </button>
       <button id="wrongMode" class="mode-card wrong-card">
-        <strong>Ôn lại câu sai <span aria-hidden="true">→</span></strong>
-        <small><span id="wrongCount">0</span> câu cần ôn</small>
+        <strong>Ôn câu sai trong nhóm <span aria-hidden="true">→</span></strong>
+        <small><span id="wrongCount">0</span> câu sai thuộc nhóm vừa làm</small>
       </button>
+      <button id="lastBatchMode" class="mode-card last-card hidden"><strong>Ôn nhóm vừa làm <span aria-hidden="true">→</span></strong><small><span id="lastBatchSize">0</span> câu, kể cả những câu đã chọn đúng</small></button>
     </section>
+    <p class="home-progress">Đã gặp <strong id="seenCount">0</strong>/80 câu · Còn <strong id="remainingCount">80</strong> câu mới</p>
+    <p class="home-cycle" id="homeCycle"></p>
     <p class="home-progress">Đã trả lời đúng <strong id="correctCount">0</strong>/80 câu</p>
   </main>
   <section id="setup" class="setup hidden" aria-label="Chọn bộ đề">
@@ -45,6 +48,8 @@
       <button class="count-choice" data-count="40">40 <span>câu</span></button>
       <button class="count-choice" data-count="80">80 <span>câu</span></button>
     </div>
+    <p class="setup-note" id="setupNote"></p>
+    <p class="setup-note" >Còn <b id="setupRemaining">80</b> câu chưa làm trong vòng hiện tại.</p>
     <label class="toggle-line"><span>Trộn thứ tự câu hỏi</span><input type="checkbox" id="shuffle" checked></label>
     <button id="startQuiz" class="main-btn">Bắt đầu ngay <span aria-hidden="true">→</span></button>
   </section>
@@ -61,13 +66,15 @@
     <div class="result-score" id="resultScore">0/10</div>
     <p id="resultMessage"></p>
     <div class="result-buttons">
-      <button class="main-btn" id="resultWrong">Ôn lại câu sai →</button>
-      <button class="outline-btn" id="resultAgain">Làm trắc nghiệm tiếp</button>
+      <button class="main-btn" id="resultReview">Ôn lại nhóm vừa làm →</button>
+      <button class="outline-btn" id="resultNext">Làm nhóm câu mới →</button>
+      <button class="text-btn" id="resultWrong">Ôn câu sai trong nhóm này →</button>
       <button class="text-btn" id="resultHome">Về trang chủ</button>
     </div>
   </section>
 </div>
-<script src="questions.js"></script><script src="app.js"></script>
+<div class="dictionary hidden" id="dictionary" role="dialog" aria-label="Nghĩa của từ tiếng Anh"><button id="dictClose" aria-label="Đóng" class="dict-close">×</button><strong id="dictWord"></strong><p id="dictMeaning"></p><small id="dictSource"></small><a id="dictExternal" target="_blank" rel="noopener">Tra thêm ↗</a></div>
+<script src="questions.js"></script><script src="translations.js"></script><script src="app.js"></script>
 <script>if('serviceWorker' in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(()=>{}));</script>
 </body>
 </html>
