@@ -196,6 +196,8 @@ let stored={};try{stored=JSON.parse(localStorage.getItem(KEY))||{}}catch{}
 const validIds=a=>Array.isArray(a)?[...new Set(a.filter(n=>Number.isInteger(n)&&n>=1&&n<=80))]:[];
 const state={seen:validIds(stored.seen),wrong:validIds(stored.wrong||old.wrong),mastered:validIds(stored.mastered||old.mastered),lastBatch:validIds(stored.lastBatch),lastResults:stored.lastResults||{},cycles:stored.cycles||0};
 let count=10,mode='quiz',items=[],position=0,selected=null,score=0,roundWrong=[],roundOriginal=[],roundResults={},fromLast=false;
+// Ghi nhớ cách sắp xếp vừa dùng để lần ôn tiếp theo thay đổi vị trí A–D.
+const previousOptionOrders=new Map();
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(state))}catch{}};
 const put=(arr,id)=>{if(!arr.includes(id))arr.push(id)};
@@ -207,14 +209,26 @@ function view(name){for(const id of ['home','setup','exam','result'])$(id).class
 function updateHome(){let left=80-seenCount();$('correctCount').textContent=state.mastered.length;$('wrongCount').textContent=batchWrongIds().length;$('seenCount').textContent=seenCount();$('remainingCount').textContent=left;$('lastBatchMode').classList.toggle('hidden',!state.lastBatch.length);$('lastBatchSize').textContent=state.lastBatch.length;$('homeCycle').textContent=left===0?'Đã đi hết 80 câu. Có thể bắt đầu vòng mới.':'Câu mới sẽ không trùng với những câu đã làm.';}
 function home(){updateHome();view('home')}
 function setup(){let left=80-seenCount();$('setupRemaining').textContent=left;$('startQuiz').textContent=left===0?'Bắt đầu vòng mới →':`Làm ${Math.min(count,left)} câu mới →`;$('setupNote').textContent=left===0?'Đã học qua đủ 80 câu. Bắt đầu sẽ tạo một vòng mới.':left<count?`Còn ${left} câu chưa gặp. Lượt tới sẽ làm ${left} câu để không bị trùng.`:`Tất cả câu trong lượt mới đều chưa xuất hiện trước đó.`;view('setup')}
-function begin(kind,chosen){mode=kind;items=chosen.slice();roundOriginal=chosen.slice();position=0;selected=null;score=0;roundWrong=[];roundResults={};if(!items.length){home();return}view('exam');render()}
+// Trộn riêng các phương án trong từng lượt làm mà KHÔNG sửa câu hỏi gốc.
+// answer luôn được tính lại theo vị trí mới của phương án đúng.
+function withShuffledOptions(q){
+  const order=shuffle([0,1,2,3]);
+  const previous=previousOptionOrders.get(q.id);
+  // Không để nguyên toàn bộ vị trí cũ khi học lại cùng một câu.
+  if ((previous && order.every((v,i)=>v===previous[i])) || (!previous && order.every((v,i)=>v===i))) {
+    order.push(order.shift());
+  }
+  previousOptionOrders.set(q.id,order.slice());
+  return {...q,options:order.map(i=>q.options[i]),answer:order.indexOf(q.answer)};
+}
+function begin(kind,chosen){mode=kind;items=chosen.map(withShuffledOptions);roundOriginal=chosen.slice();position=0;selected=null;score=0;roundWrong=[];roundResults={};if(!items.length){home();return}view('exam');render()}
 function tokenize(s){const re=/([\p{L}\p{N}]+(?:[’'\-][\p{L}\p{N}]+)*)/gu;let out='',last=0;for(let m of s.matchAll(re)){out+=esc(s.slice(last,m.index));out+=`<button type="button" class="word" data-word="${esc(m[0])}" title="Chạm để xem nghĩa">${esc(m[0])}</button>`;last=m.index+m[0].length}return out+esc(s.slice(last))}
 function render(){let q=items[position];$('examMode').textContent=mode==='wrong'?'ÔN CÂU SAI':mode==='review'?'ÔN LẠI NHÓM VỪA LÀM':'LÀM CÂU MỚI';$('progressLabel').textContent=`Câu ${position+1} / ${items.length}`;$('scoreLabel').textContent=`${score} đúng`;$('progressFill').style.width=`${((position+1)/items.length)*100}%`;
 const details=vi[q.id]||['',''];
 $('questionArea').innerHTML=`<article class="question-card"><div class="question-meta"><span class="question-num">CÂU ${String(q.id).padStart(2,'0')} / 80</span><span class="word-help">Chạm vào từ để xem nghĩa chuyên ngành</span></div><h2>${tokenize(q.question)}</h2><details class="question-translation"><summary>Dịch câu hỏi</summary><p>${esc(details[0])}</p></details><div class="answers">${q.options.map((answer,i)=>`<button type="button" class="answer${selected!==null?(i===q.answer?' correct':i===selected?' incorrect':' dim'):''}" data-choice="${i}" ${selected!==null?'disabled':''}><span class="answer-letter">${letters[i]}</span><span class="answer-content">${esc(answer)}</span></button>`).join('')}</div>${selected===null?'':`<div class="feedback ${selected===q.answer?'':'bad'}"><strong>${selected===q.answer?'✓ Chính xác!':'✕ Chưa đúng!'}</strong><p>Đáp án: <b>${letters[q.answer]}. ${tokenize(q.options[q.answer])}</b></p><div class="translated-answer"><span>NGHĨA TIẾNG VIỆT</span><p>${esc(details[1])}</p></div><button type="button" class="secondary-link" id="translateAll">Dịch thêm 3 đáp án còn lại ↗</button><div id="otherTranslations" class="other-translations hidden" aria-live="polite"></div></div>`}</article>`;
 $('questionArea').querySelectorAll('[data-choice]').forEach(el=>el.onclick=()=>choose(Number(el.dataset.choice)));
 $('questionArea').querySelectorAll('.word').forEach(el=>el.onclick=e=>{e.stopPropagation();lookupWord(el.dataset.word,el,q.question)});
-$('examActions').innerHTML=selected===null?'<p class="choose-hint">Chọn 1 trong 4 đáp án</p>':`<button class="main-btn" id="nextBtn">${position===items.length-1?'Xem kết quả →':'Câu tiếp theo →'}</button>`;
+$('examActions').innerHTML=selected===null?'<p class="choose-hint">Chọn 1 trong 4 đáp án · Vị trí đáp án được trộn mỗi lượt</p>':`<button class="main-btn" id="nextBtn">${position===items.length-1?'Xem kết quả →':'Câu tiếp theo →'}</button>`;
 if(selected!==null){$('nextBtn').onclick=next;$('translateAll').onclick=()=>translateOther(q)};
 window.scrollTo({top:0,behavior:'instant'});
 }
